@@ -1,0 +1,60 @@
+gDat <- read.delim("gapminderDataFiveYear.txt")
+
+gdURL <- "http://www.stat.ubc.ca/~jenny/notOcto/STAT545A/examples/gapminder/data/gapminderDataFiveYear.txt"
+gDat <- read.delim(file = gdURL)
+
+str(gDat)
+head(gDat)
+tail(gDat)
+
+names(gDat)
+colnames(gDat)
+length(gDat)
+ncol(gDat)
+
+head(rownames(gDat))
+dim(gDat)
+nrow(gDat)
+
+summary(gDat)
+
+library(lattice)
+xyplot(lifeExp ~ year, data = gDat)
+xyplot(lifeExp ~ gdpPercap, gDat)
+xyplot(lifeExp ~ gdpPercap, gDat, subset = country == "Colombia")
+xyplot(lifeExp ~ gdpPercap, gDat, subset = country == "Colombia", type = c("p", "r"))
+xyplot(lifeExp ~ gdpPercap | continent, gDat, subset = year == 2007)
+xyplot(lifeExp ~ gdpPercap, gDat, group = continent, subset = year == 2007, auto.key = TRUE)
+
+xyplot(lifeExp ~ year, gDat, subset = country == "Canada")
+xyplot(gdpPercap ~ year, gDat, subset = country == "Canada")
+
+head(gDat$lifeExp)
+summary(gDat$lifeExp)
+densityplot(~lifeExp, gDat)
+densityplot(~lifeExp|year, gDat)
+
+summary(gDat$year)
+table(gDat$year)
+
+class(gDat$continent)
+summary(gDat$continent)
+table(gDat$continent)
+levels(gDat$continent)
+nlevels(gDat$continent)
+barchart(table(gDat$continent), horizontal = FALSE)
+dotplot(table(gDat$continent), type = "h", col.line = NA)
+dotplot(table(gDat$continent), type = c("p", "h"), col.line = NA)
+str(gDat$continent)
+
+(uruguay.dat <- subset(gDat, subset = country == "Uruguay"))
+gDat[1621:1632,]
+
+subset(gDat, subset = country == "Mexico", select = c(country, year, lifeExp))
+subset(gDat, subset = country == "Mexico", select = c("country", "year", "lifeExp"))
+
+(minYear <- min(gDat$year))
+myFit <- lm(lifeExp ~ I(year - minYear), gDat, subset = country == "Colombia")
+summary(myFit)
+
+with(subset(gDat, subset = country == "Colombia"), cor(lifeExp, gdpPercap))
