@@ -1,0 +1,35 @@
+Seminar 1 -- Data exploration
+========================================================
+
+Exploring a small gene expression dataset (39 samples, 3 genes).
+
+First, read in the data:
+```{r}
+prDat <- read.table("GSE4051_MINI.txt", header = TRUE, row.names = 1)
+str(prDat)
+```
+
+Next, explore the sample breakdown:
+```{r}
+table(prDat[,c("devStage", "gType")])
+```
+
+Now observe the trends in expression for these samples/genes:
+```{r fig.width=7, fig.height=4}
+library(lattice)
+col.scheme <- c("red", "blue", "green")
+xyplot(
+  crabHammer + eggBomb + poisonFang ~ sample,
+  data = prDat,
+  col = col.scheme,
+  pch = 19,
+  xlab = "Sample",
+  ylab = "Expression",
+  key = list(
+    space = "top",
+    text = list(c("crabHammer", "eggBomb", "poisonFang")),
+    points = list(col = col.scheme, pch = 19)
+  )
+)
+```
+
