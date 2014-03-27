@@ -1,0 +1,84 @@
+Lattice plotting
+========================================================
+
+Going through various examples of lattice plots.
+First load the data:
+```{r}
+library(lattice)
+kDat <- readRDS("GSE4051_MINI.rds")
+table(kDat[,c("devStage", "gType")])
+```
+
+Scatterplots
+------------
+Basic scatterplots using defaults:
+```{r}
+xyplot(eggBomb ~ crabHammer, data = kDat)
+xyplot(poisonFang ~ crabHammer, data = kDat)
+```
+
+Plotting multiple datasets on the y-axis:
+```{r}
+xyplot(eggBomb + poisonFang ~ crabHammer, data = kDat, auto.key = TRUE)
+```
+
+Plotting side-by-side scatterplots:
+```{r}
+xyplot(eggBomb + poisonFang ~ crabHammer, kDat,
+       outer = TRUE, grid = TRUE)
+```
+
+Using the 'groups' argument to colour points by gType:
+```{r}
+xyplot(eggBomb + poisonFang ~ crabHammer, kDat,
+       outer = TRUE, grid = TRUE,
+       groups = gType, auto.key = TRUE)
+```
+
+Reshaping the data to use factors for different panels:
+```{r}
+nDat <- with(
+  kDat,
+  data.frame(sidChar, sidNum, devStage, gType, crabHammer,
+             probeset = factor(rep(c("eggBomb", "poisonFang"), each = nrow(kDat))),
+             geneExp = c(eggBomb, poisonFang)
+  )
+)
+str(nDat)
+xyplot(geneExp ~ crabHammer | probeset, nDat,
+       grid = TRUE, groups = gType, auto.key = TRUE)
+xyplot(geneExp ~ crabHammer | probeset, nDat,
+       grid = TRUE, groups = devStage, auto.key = TRUE)
+```
+
+Stripplots
+----------
+Now we treat all genes as factors:
+```{r}
+oDat <- with(
+  kDat,
+  data.frame(sidChar, sidNum, devStage, gType,
+             probeset = factor(rep(c("crabHammer", "eggBomb", "poisonFang"), each = nrow(kDat))),
+             geneExp = c(crabHammer, eggBomb, poisonFang)
+  )
+)
+str(oDat)
+```
+
+Some basic stripplots:
+```{r}
+stripplot(~ geneExp, oDat)
+stripplot(probeset ~ geneExp, oDat)
+stripplot(probeset ~ geneExp, oDat, jitter.data = TRUE)
+```
+
+A more interesting plot:
+```{r}
+stripplot(geneExp ~ devStage | probeset, oDat,
+          layout = c(nlevels(oDat$probeset), 1),
+          groups = gType, auto.key = TRUE, grid = TRUE,
+          type = c('p', 'a'))
+```
+
+Density plots
+-------------

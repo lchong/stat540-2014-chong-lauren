@@ -1,0 +1,125 @@
+STAT 540 -- Seminar 7
+========================================================
+
+Looking at read count data from RNA-seq of 21 mice (2 strains).
+
+Load packages:
+```{r}
+library(edgeR)
+library(DESeq)
+library(limma)
+```
+
+Load the data:
+```{r}
+dat <- read.table("bottomly_count_table.tsv", header = TRUE, row.names = 1)
+des <- read.table("bottomly_phenodata.tsv", header = TRUE, row.names = 1)
+dim(dat)
+head(dat)
+show(des)
+```
+
+edgeR analysis
+--------------
+First we will run our DE analysis using edgeR to model the expression.  
+
+Create a DGEList separating the samples by strain, and then a design matrix for model fitting:
+```{r}
+group <- factor(as.numeric(des$strain))
+dge.glm <- DGEList(counts = dat, group = group)
+show(dge.glm$samples)
+design <- model.matrix(~group)
+show(design)
+```
+
+Estimate dispersion for each probe:
+```{r}
+dge.glm.com.disp <- estimateGLMCommonDisp(dge.glm, design, verbose = TRUE)
+dge.glm.trend.disp <- estimateGLMTrendedDisp(dge.glm.com.disp, design)
+dge.glm.tag.disp <- estimateGLMTagwiseDisp(dge.glm.trend.disp, design)
+plotBCV(dge.glm.tag.disp)
+```
+
+Fit an adjusted linear model, run likelihood test:
+```{r}
+fit <- glmFit(dge.glm.tag.disp, design)
+lrt <- glmLRT(fit, coef = 2)
+```
+
+We want to identify genes that show significantly different expression between the two strains. Look at the top 10 most significant results:
+```{r}
+topTags(lrt)
+```
+
+Get counts of significant genes (FDR-adjusted p-val < 0.01):
+```{r}
+tt.glm <- topTags(lrt, n = Inf)
+nrow(tt.glm$table[tt.glm$table$FDR < 0.01, ])
+```
+
+Now grab the names of some highly significant genes:
+```{r}
+interestingSamples <- rownames(tt.glm$table[tt.glm$table$FDR < 1e-50, ])
+cpm(dge.glm.tag.disp)[interestingSamples, ]
+```
+
+Characterize the number of genes altered in the strains:
+```{r}
+summary(de.glm <- decideTestsDGE(lrt, p = 0.05, adjust = "BH"))
+```
+There are `r length(which(de.glm == -1))` genes under-expressed in the DBA/2J mice, and `r length(which(de.glm == 1))` that are over-expressed. The remaining `r length(which(de.glm == 0))` show no significant differences in expression.
+
+Observe the fold-changes:
+```{r}
+tags.glm <- rownames(dge.glm.tag.disp)[as.logical(de.glm)]
+plotSmear(lrt, de.tags = tags.glm)
+abline(h = c(-2, 2), col = "blue")
+```
+
+DESeq analysis
+--------------
+Now try the DE analysis using the DESeq package.
+
+Create the data set:
+```{r}
+deSeqDat <- newCountDataSet(dat, group)
+head(counts(deSeqDat))
+```
+
+Estimate size factors:
+```{r}
+deSeqDat <- estimateSizeFactors(deSeqDat)
+sizeFactors(deSeqDat)
+deSeqDat <- estimateDispersions(deSeqDat)
+```
+
+Plot dispersion vs.counts:
+```{r}
+plotDispEsts(deSeqDat)
+```
+
+Now fit the model:
+```{r}
+results <- nbinomTest(deSeqDat, levels(group)[1], levels(group)[2])
+str(results)
+plotMA(results)
+```
+
+Limma & voom analysis
+---------------------
+Use Voom and limma to perform DE analysis.
+
+Prepare the data (figure out weights, etc.):
+```{r}
+norm.factor <- calcNormFactors(dat)
+show(norm.factor)
+dat.voomed <- voom(dat, design, plot = TRUE, lib.size = colSums(dat) * norm.factor)
+dat.voomed
+```
+
+Now fit the model using our "voomed" data, and check out the top results:
+```{r}
+fit <- lmFit(dat.voomed, design)
+fit <- eBayes(fit)
+topTable(fit)
+```
