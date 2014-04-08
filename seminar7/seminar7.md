@@ -13,6 +13,57 @@ library(edgeR)
 ## Loading required package: limma
 ```
 
+```r
+library(DESeq)
+```
+
+```
+## Loading required package: BiocGenerics
+## Loading required package: parallel
+## 
+## Attaching package: 'BiocGenerics'
+## 
+## The following objects are masked from 'package:parallel':
+## 
+##     clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+##     clusterExport, clusterMap, parApply, parCapply, parLapply,
+##     parLapplyLB, parRapply, parSapply, parSapplyLB
+## 
+## The following object is masked from 'package:limma':
+## 
+##     plotMA
+## 
+## The following object is masked from 'package:stats':
+## 
+##     xtabs
+## 
+## The following objects are masked from 'package:base':
+## 
+##     anyDuplicated, append, as.data.frame, as.vector, cbind,
+##     colnames, duplicated, eval, evalq, Filter, Find, get,
+##     intersect, is.unsorted, lapply, Map, mapply, match, mget,
+##     order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+##     rbind, Reduce, rep.int, rownames, sapply, setdiff, sort,
+##     table, tapply, union, unique, unlist
+## 
+## Loading required package: Biobase
+## Welcome to Bioconductor
+## 
+##     Vignettes contain introductory material; view with
+##     'browseVignettes()'. To cite Bioconductor, see
+##     'citation("Biobase")', and for packages 'citation("pkgname")'.
+## 
+## Loading required package: locfit
+## locfit 1.5-9.1 	 2013-03-22
+## Loading required package: lattice
+##     Welcome to 'DESeq'. For improved performance, usability and
+##     functionality, please consider migrating to 'DESeq2'.
+```
+
+```r
+library(limma)
+```
+
 
 Load the data:
 
@@ -319,4 +370,242 @@ abline(h = c(-2, 2), col = "blue")
 ```
 
 ![plot of chunk unnamed-chunk-10](figure/unnamed-chunk-10.png) 
+
+
+DESeq analysis
+--------------
+Now try the DE analysis using the DESeq package.
+
+Create the data set:
+
+```r
+deSeqDat <- newCountDataSet(dat, group)
+head(counts(deSeqDat))
+```
+
+```
+##                    SRX033480 SRX033488 SRX033481 SRX033489 SRX033482
+## ENSMUSG00000000001       369       744       287       769       348
+## ENSMUSG00000000003         0         0         0         0         0
+## ENSMUSG00000000028         0         1         0         1         1
+## ENSMUSG00000000031         0         0         0         0         0
+## ENSMUSG00000000037         0         1         1         5         0
+## ENSMUSG00000000049         0         1         0         1         0
+##                    SRX033490 SRX033483 SRX033476 SRX033478 SRX033479
+## ENSMUSG00000000001       803       433       469       585       321
+## ENSMUSG00000000003         0         0         0         0         0
+## ENSMUSG00000000028         1         0         7         6         1
+## ENSMUSG00000000031         0         0         0         0         0
+## ENSMUSG00000000037         4         0         0         0         0
+## ENSMUSG00000000049         0         0         0         0         0
+##                    SRX033472 SRX033473 SRX033474 SRX033475 SRX033491
+## ENSMUSG00000000001       301       461       309       374       781
+## ENSMUSG00000000003         0         0         0         0         0
+## ENSMUSG00000000028         1         1         1         1         1
+## ENSMUSG00000000031         0         0         0         0         0
+## ENSMUSG00000000037         4         1         1         0         1
+## ENSMUSG00000000049         0         0         0         0         0
+##                    SRX033484 SRX033492 SRX033485 SRX033493 SRX033486
+## ENSMUSG00000000001       555       820       294       758       419
+## ENSMUSG00000000003         0         0         0         0         0
+## ENSMUSG00000000028         2         1         1         4         1
+## ENSMUSG00000000031         0         0         0         0         0
+## ENSMUSG00000000037         2         1         1         1         1
+## ENSMUSG00000000049         0         0         0         0         0
+##                    SRX033494
+## ENSMUSG00000000001       857
+## ENSMUSG00000000003         0
+## ENSMUSG00000000028         5
+## ENSMUSG00000000031         0
+## ENSMUSG00000000037         2
+## ENSMUSG00000000049         0
+```
+
+
+Estimate size factors:
+
+```r
+deSeqDat <- estimateSizeFactors(deSeqDat)
+sizeFactors(deSeqDat)
+```
+
+```
+## SRX033480 SRX033488 SRX033481 SRX033489 SRX033482 SRX033490 SRX033483 
+##    0.6439    1.3454    0.5785    1.4295    0.6355    1.5240    0.7933 
+## SRX033476 SRX033478 SRX033479 SRX033472 SRX033473 SRX033474 SRX033475 
+##    1.1272    1.0772    0.8984    0.8886    1.0255    0.7987    0.7796 
+## SRX033491 SRX033484 SRX033492 SRX033485 SRX033493 SRX033486 SRX033494 
+##    1.6162    0.9882    1.5720    0.7558    1.5922    0.8264    1.4715
+```
+
+```r
+deSeqDat <- estimateDispersions(deSeqDat)
+```
+
+
+Plot dispersion vs.counts:
+
+```r
+plotDispEsts(deSeqDat)
+```
+
+![plot of chunk unnamed-chunk-13](figure/unnamed-chunk-13.png) 
+
+
+Now fit the model:
+
+```r
+results <- nbinomTest(deSeqDat, levels(group)[1], levels(group)[2])
+str(results)
+```
+
+```
+## 'data.frame':	36536 obs. of  8 variables:
+##  $ id            : chr  "ENSMUSG00000000001" "ENSMUSG00000000003" "ENSMUSG00000000028" "ENSMUSG00000000031" ...
+##  $ baseMean      : num  489.18 0 1.57 0 1.1 ...
+##  $ baseMeanA     : num  509.685 0 1.657 0 0.859 ...
+##  $ baseMeanB     : num  470.53 0 1.49 0 1.32 ...
+##  $ foldChange    : num  0.923 NaN 0.898 NaN 1.537 ...
+##  $ log2FoldChange: num  -0.115 NaN -0.156 NaN 0.62 ...
+##  $ pval          : num  0.498 NA 0.829 NA 0.968 ...
+##  $ padj          : num  1 NA 1 NA 1 ...
+```
+
+```r
+plotMA(results)
+```
+
+![plot of chunk unnamed-chunk-14](figure/unnamed-chunk-14.png) 
+
+
+Limma & voom analysis
+---------------------
+Use Voom and limma to perform DE analysis.
+
+Prepare the data (figure out weights, etc.):
+
+```r
+norm.factor <- calcNormFactors(dat)
+show(norm.factor)
+```
+
+```
+##  [1] 0.9888 0.9783 1.0034 1.0041 0.9949 0.9850 0.9995 1.0059 0.9967 0.9873
+## [11] 1.0250 0.9950 0.9923 1.0137 1.0067 1.0408 0.9961 1.0234 0.9816 0.9977
+## [21] 0.9861
+```
+
+```r
+dat.voomed <- voom(dat, design, plot = TRUE, lib.size = colSums(dat) * norm.factor)
+```
+
+![plot of chunk unnamed-chunk-15](figure/unnamed-chunk-15.png) 
+
+```r
+dat.voomed
+```
+
+```
+## An object of class "EList"
+## $E
+##                    SRX033480 SRX033488 SRX033481 SRX033489 SRX033482
+## ENSMUSG00000000001     6.941     6.916     6.720     6.871     6.860
+## ENSMUSG00000000003    -2.588    -3.625    -2.447    -3.716    -2.585
+## ENSMUSG00000000028    -2.588    -2.040    -2.447    -2.132    -1.000
+## ENSMUSG00000000031    -2.588    -3.625    -2.447    -3.716    -2.585
+## ENSMUSG00000000037    -2.588    -2.040    -0.862    -0.257    -2.585
+##                    SRX033490 SRX033483 SRX033476 SRX033478 SRX033479
+## ENSMUSG00000000001    6.8447      6.87    6.4977    6.8899     6.279
+## ENSMUSG00000000003   -3.8055     -2.89   -3.3773   -3.3036    -3.049
+## ENSMUSG00000000028   -2.2205     -2.89    0.5296    0.3968    -1.465
+## ENSMUSG00000000031   -3.8055     -2.89   -3.3773   -3.3036    -3.049
+## ENSMUSG00000000037   -0.6355     -2.89   -3.3773   -3.3036    -3.049
+##                    SRX033472 SRX033473 SRX033474 SRX033475 SRX033491
+## ENSMUSG00000000001    6.2110     6.615     6.397     6.693     6.737
+## ENSMUSG00000000003   -3.0250    -3.236    -2.877    -2.855    -3.873
+## ENSMUSG00000000028   -1.4400    -1.651    -1.292    -1.270    -2.288
+## ENSMUSG00000000031   -3.0250    -3.236    -2.877    -2.855    -3.873
+## ENSMUSG00000000037    0.1449    -1.651    -1.292    -2.855    -2.288
+##                    SRX033484 SRX033492 SRX033485 SRX033493 SRX033486
+## ENSMUSG00000000001    6.9151     6.855     6.375     6.718     6.760
+## ENSMUSG00000000003   -3.2025    -3.825    -2.827    -3.849    -2.952
+## ENSMUSG00000000028   -0.8806    -2.240    -1.242    -0.679    -1.367
+## ENSMUSG00000000031   -3.2025    -3.825    -2.827    -3.849    -2.952
+## ENSMUSG00000000037   -0.8806    -2.240    -1.242    -2.264    -1.367
+##                    SRX033494
+## ENSMUSG00000000001     7.005
+## ENSMUSG00000000003    -3.739
+## ENSMUSG00000000028    -0.280
+## ENSMUSG00000000031    -3.739
+## ENSMUSG00000000037    -1.417
+## 36531 more rows ...
+## 
+## $weights
+##        [,1]   [,2]   [,3]   [,4]   [,5]   [,6]   [,7]   [,8]   [,9]  [,10]
+## [1,] 15.907 19.293 15.443 19.597 15.899 19.891 16.895 18.482 18.240 17.413
+## [2,]  1.632  1.547  1.632  1.531  1.632  1.517  1.632  1.595  1.612  1.632
+## [3,]  1.469  1.383  1.488  1.378  1.470  1.374  1.436  1.397  1.402  1.421
+## [4,]  1.632  1.547  1.632  1.531  1.632  1.517  1.632  1.595  1.612  1.632
+## [5,]  1.558  1.421  1.585  1.414  1.558  1.407  1.507  1.445  1.453  1.484
+##       [,11]  [,12]  [,13]  [,14]  [,15]  [,16]  [,17]  [,18]  [,19]  [,20]
+## [1,] 16.988 17.670 16.503 16.432 19.760 17.564 19.603 16.339 19.682 16.748
+## [2,]  1.632  1.632  1.632  1.632  1.531  1.632  1.539  1.632  1.535  1.632
+## [3,]  1.403  1.390  1.415  1.416  1.354  1.392  1.358  1.419  1.356  1.409
+## [4,]  1.632  1.632  1.632  1.632  1.531  1.632  1.539  1.632  1.535  1.632
+## [5,]  1.423  1.406  1.437  1.439  1.370  1.409  1.373  1.442  1.371  1.429
+##       [,21]
+## [1,] 19.318
+## [2,]  1.555
+## [3,]  1.364
+## [4,]  1.555
+## [5,]  1.377
+## 36531 more rows ...
+## 
+## $design
+##   (Intercept) group2
+## 1           1      0
+## 2           1      0
+## 3           1      0
+## 4           1      0
+## 5           1      0
+## 16 more rows ...
+## 
+## $targets
+## [1] 3006197 6166939 2726341 6572633 3000692
+## 16 more rows ...
+```
+
+
+Now fit the model using our "voomed" data, and check out the top results:
+
+```r
+fit <- lmFit(dat.voomed, design)
+fit <- eBayes(fit)
+topTable(fit)
+```
+
+```
+##                    X.Intercept.    group2 AveExpr      F   P.Value
+## ENSMUSG00000025867       12.477 -0.013979  12.471 154234 2.584e-55
+## ENSMUSG00000022892       12.268 -0.086479  12.223 138459 1.103e-54
+## ENSMUSG00000037852       12.321 -0.237470  12.194 134826 1.576e-54
+## ENSMUSG00000042700       10.716 -0.048029  10.692 133973 1.717e-54
+## ENSMUSG00000029461       10.300  0.020715  10.311 121795 6.182e-54
+## ENSMUSG00000020658        9.610 -0.019628   9.601 119935 7.604e-54
+## ENSMUSG00000060261        9.469 -0.015743   9.461 117841 9.635e-54
+## ENSMUSG00000032549       11.904  0.003545  11.905 117324 1.022e-53
+## ENSMUSG00000024462       10.227 -0.138929  10.153 116767 1.090e-53
+## ENSMUSG00000030102       12.085 -0.026149  12.073 112155 1.874e-53
+##                    adj.P.Val
+## ENSMUSG00000025867 9.442e-51
+## ENSMUSG00000022892 1.568e-50
+## ENSMUSG00000037852 1.568e-50
+## ENSMUSG00000042700 1.568e-50
+## ENSMUSG00000029461 4.424e-50
+## ENSMUSG00000020658 4.424e-50
+## ENSMUSG00000060261 4.424e-50
+## ENSMUSG00000032549 4.424e-50
+## ENSMUSG00000024462 4.424e-50
+## ENSMUSG00000030102 6.417e-50
+```
 

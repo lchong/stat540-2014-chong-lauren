@@ -226,8 +226,8 @@ foo <- xtable(ttRes)
 print(foo, type = "html", include.rownames = FALSE)
 ```
 
-<!-- html table generated in R 3.0.2 by xtable 1.7-1 package -->
-<!-- Thu Mar 06 15:37:03 2014 -->
+<!-- html table generated in R 3.0.2 by xtable 1.7-3 package -->
+<!-- Mon Apr 07 20:32:22 2014 -->
 <TABLE border=1>
 <TR> <TH> gene </TH> <TH> pval </TH>  </TR>
   <TR> <TD> 1431708_a_at </TD> <TD align="right"> 0.00 </TD> </TR>
