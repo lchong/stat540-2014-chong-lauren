@@ -47,6 +47,10 @@ nDat <- with(
 str(nDat)
 xyplot(geneExp ~ crabHammer | probeset, nDat,
        grid = TRUE, groups = gType, auto.key = TRUE)
+```
+
+Now try showing developmental stage using the groups argument:
+```{r}
 xyplot(geneExp ~ crabHammer | probeset, nDat,
        grid = TRUE, groups = devStage, auto.key = TRUE)
 ```
@@ -68,11 +72,16 @@ str(oDat)
 Some basic stripplots:
 ```{r}
 stripplot(~ geneExp, oDat)
-stripplot(probeset ~ geneExp, oDat)
-stripplot(probeset ~ geneExp, oDat, jitter.data = TRUE)
+stripplot(geneExp ~ probeset, oDat)
+stripplot(geneExp ~ probeset, oDat, jitter.data = TRUE)
 ```
 
-A more interesting plot:
+Now try separating the plots into panels by probeset:
+```{r}
+stripplot(~ geneExp | probeset, oDat, jitter.data = TRUE, grid = TRUE)
+```
+
+Now consider expression at different developmental stages:
 ```{r}
 stripplot(geneExp ~ devStage | probeset, oDat,
           layout = c(nlevels(oDat$probeset), 1),
@@ -80,5 +89,168 @@ stripplot(geneExp ~ devStage | probeset, oDat,
           type = c('p', 'a'))
 ```
 
+Add some customizations to make it look a bit prettier, including a custom legend:
+```{r}
+stripplot(geneExp ~ devStage | probeset, oDat,
+          layout = c(nlevels(oDat$probeset), 1),
+          groups = gType, grid = TRUE, type = c('p', 'a'),
+          pch = 19, col = c("firebrick", "dodgerblue"),
+          key = list(space = "top",
+                     points = list(pch = 19, col = c("firebrick", "dodgerblue")),
+                     text = list(levels(oDat$gType))
+          ), scales = list(x = list(rot = 90)))
+```
+
 Density plots
 -------------
+"A nice alternative to histograms". Start by looking at the distribution of gene expression values for different genotypes:
+```{r}
+densityplot(~ geneExp | gType, oDat)
+```
+
+Now observe the density by gene (one plot):
+```{r}
+myBw <- 0.2
+myN <- 400
+densityplot(~ geneExp, oDat, groups = probeset, n = myN, bw = myBw, auto.key = TRUE)
+```
+
+Look at different developmental stages:
+```{r}
+densityplot(~ geneExp, oDat, groups = devStage, auto.key = TRUE)
+```
+
+Eek.. try doing the stages in different panels instead:
+```{r}
+densityplot(~ geneExp | devStage, oDat, auto.key = TRUE)
+```
+
+Boxplots
+--------
+Box-and-whisker plots are an easy way to see distributions:
+```{r}
+bwplot(geneExp ~ devStage | gType, oDat)
+```
+
+Violin plots give more resolution about the density:
+```{r}
+bwplot(geneExp ~ devStage, oDat, panel = panel.violin, col = "darkgrey", border = "darkgrey")
+```
+
+Do a violin plot to compare between genes:
+```{r}
+bwplot(geneExp ~ probeset, oDat, panel = panel.violin, col = "darkgrey", border = "darkgrey")
+```
+
+Cool! But let's try separating them by genotype:
+```{r}
+bwplot(geneExp ~ probeset | gType, oDat, panel = panel.violin, col = "darkgrey", border = "darkgrey")
+```
+
+Heatmaps
+--------
+Load in the full data set:
+```{r}
+prDat <- read.table("GSE4051_data.tsv")
+str(prDat, max.level = 0)
+prDes <- readRDS("GSE4051_design.rds")
+str(prDes)
+```
+
+Draw 50 probesets at random to use for analysis:
+```{r}
+set.seed(540)
+(myProbes <- sample(1:nrow(prDat), size = 50))
+hDat <- prDat[myProbes, ]
+```
+
+Reshape for nicer heatmap results:
+```{r}
+hDat <- as.matrix(t(hDat))
+rownames(hDat) <- with(prDes, 
+                       paste(devStage, gType, sidChar, sep="_"))
+str(hDat)
+```
+
+Set up a nice colour scheme, plot a simple heatmap:
+```{r}
+library(RColorBrewer)
+colFun <- colorRampPalette(brewer.pal(n = 9, "Purples"))
+heatmap(hDat, Rowv = NA, Colv = NA, scale="none", margins = c(5, 8),
+        col = colFun(256))
+```
+
+Allow clustering by rows and columns:
+```{r}
+heatmap(hDat, scale="none", margins = c(5, 8), col = colFun(256))
+```
+
+Try a different heatmap function from the gplots lib:
+```{r}
+library(gplots)
+heatmap.2(hDat, col = colFun, trace = "none", margins = c(5, 9))
+```
+
+Looks nice! And includes a default colour key which is helpful.
+
+Finally, try a lattice heatmap:
+```{r}
+levelplot(t(hDat), col.regions = colFun(256), scales = list(x = list(rot = 90)), xlab = NULL, ylab = NULL)
+```
+
+Also very nice, and includes a colour key. Doesn't do clustering though!
+
+Plot matrix
+-----------
+I will just play around with the lattice and hexbin versions.
+
+First grab 4 samples to test with:
+```{r}
+set.seed(540)
+(mySamples <- sample(1:ncol(prDat), size = 4))
+pairDat <- subset(prDat, select = mySamples)
+```
+
+Try with lattice's splom function and their smooth scatter panel function:
+```{r}
+splom(pairDat, panel = panel.smoothScatter, raster = TRUE)
+```
+
+Now use hexbin's function:
+```{r}
+library(hexbin)
+hexplom(pairDat)
+```
+
+Take-home
+---------
+Look for genes with differences in expression between genotypes. Select 5 genes at random for testing:
+```{r}
+set.seed(54045)
+(myGenes <- sample(c(1:nrow(prDat)), size = 10))
+myDat <- prDat[myGenes,]
+```
+
+Re-shape the data to be used for plotting:
+```{r}
+tDat <- data.frame(
+  gExp = as.vector(unlist(t(myDat))),
+  probeset = rep(rownames(myDat), each = ncol(myDat))
+  )
+tDat <- suppressWarnings(data.frame(prDes, tDat))
+str(tDat)
+```
+
+Now plot the expression for the 5 genes as a function of dev stage, separating the values by genotype:
+```{r}
+xyplot(gExp ~ devStage | probeset, tDat, groups = gType, type = c("p", "a"), auto.key = TRUE, layout = c(5, 2), scales = list(x = list(rot = 90)))
+```
+
+Looks like the bottom middle gene, 1423174_a_at, shows higher expression in knockout vs. wild-type.
+
+Try doing a simple violin plot by genotype to verify:
+```{r}
+bwplot(gExp ~ gType | probeset, tDat, panel = panel.violin, col = "darkgrey", border = "darkgrey", layout = c(5, 2))
+```
+
+Indeed, it looks like it has higher expression in the knock-out samples.
