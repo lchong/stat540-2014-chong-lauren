@@ -1,0 +1,109 @@
+Seminar 6 -- Fitting and interpreting linear models (high volume)
+=================================================================
+### Lauren Chong
+
+Load libraries and data:
+```{r}
+library(limma)
+library(lattice)
+
+prDat <- read.table("GSE4051_data.tsv")
+str(prDat, max.level = 0)
+
+prDes <- readRDS("GSE4051_design.rds")
+str(prDes)
+```
+
+Grab just the wild-type data (used for this tutorial) and set up some functions for extracting and plotting data:
+```{r}
+wtDes <- subset(prDes, gType == "wt")
+str(wtDes)
+
+wtDat <- subset(prDat, select = prDes$gType == "wt")
+str(wtDat, max.level = 0)
+
+prepareData <- function(myGenes) {
+  genesDat <- wtDat[myGenes,]
+  genesDat <- data.frame(
+    gExp = as.vector(t(as.matrix(genesDat))),
+    gene = factor(rep(myGenes, each = ncol(genesDat)), levels = myGenes)
+  )
+  genesDat <- suppressWarnings(data.frame(wtDes, genesDat))
+  return(genesDat)
+}
+
+makeStripplot <- function(myData, ...) {
+  stripplot(gExp ~ devStage | gene, myData, jitter.data = TRUE,
+            scales = list(x = list(rot = 90)), type = c('p', 'a'),
+            grid = TRUE,  ...)
+}
+```
+
+For this tutorial, consider the effect of only developmental stage on expression. Use lmFit to create linear models for all genes:
+```{r}
+wtDesMat <- model.matrix(~devStage, wtDes)
+wtDesMat
+wtFit <- lmFit(wtDat, wtDesMat)
+wtEbFit <- eBayes(wtFit)
+```
+
+Count the number of genes with FDR < 1e-5:
+```{r}
+hits <- topTable(wtEbFit, coef = grep("devStage", colnames(coef(wtEbFit))), number = Inf, p.value = 1e-5)
+dim(hits)
+```
+So there are `r nrow(hits)` such hits.
+
+### Contrasts
+Now consider some contrasts between different levels of developmental stage.
+
+First consider the differences observed at the latest 3 stages:
+```{r}
+colnames(wtDesMat)
+(cont.matrix <- makeContrasts(P10VsP6 = devStageP10 - devStageP6, fourweeksVsP10 = devStage4_weeks - devStageP10, levels = wtDesMat))
+wtFitCont <- contrasts.fit(wtFit, cont.matrix)
+wtEbFitCont <- eBayes(wtFitCont)
+topTable(wtEbFitCont)
+```
+
+Adjust the p-values:
+```{r}
+cutoff <- 1e-2
+wtResCont <- decideTests(wtEbFitCont, p.value = cutoff, method = "global")
+summary(wtResCont)
+```
+
+Plot a few of the interesting genes we've found:
+```{r}
+ids1 <- names(which(wtResCont[,"P10VsP6"] > 0))
+makeStripplot(prepareData(ids1[1:6]))
+
+ids2 <- names(which(wtResCont[,"fourweeksVsP10"] < 0))
+makeStripplot(prepareData(ids2[1:6]))
+
+cool.id <- intersect(ids1, ids2)
+makeStripplot(prepareData(cool.id))
+```
+
+## Take-home exercise
+Find probes where expression changes before P6 but not after.
+
+Start by finding genes with expression changes in early stages. Since we already have the fitted linear model, we can just extract matches using topTable and selecting coefficients for P2 and P6:
+```{r}
+early.hits <- topTable(wtEbFit, coef = c("devStageP2", "devStageP6"), number = 5000, p.value = 1e-5)
+early.hits.ids <- rownames(early.hits)
+```
+
+Plot some early hits for verification:
+```{r}
+makeStripplot(prepareData(early.hits.ids[1:6]))
+```
+
+Utilize our existing contrast results for P6 to 4 weeks to find 3 genes that change in early stages and are steady in late stages.
+```{r}
+late.hits <- topTable(wtEbFitCont, number = Inf)
+late.hits.ids <- rownames(tail(late.hits, n = 5000))
+
+hit.matches <- intersect(early.hits.ids, late.hits.ids)
+makeStripplot(prepareData(hit.matches[1:3]))
+```
