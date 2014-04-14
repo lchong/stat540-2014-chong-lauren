@@ -1,5 +1,6 @@
-STAT 540 -- Seminar 7
-========================================================
+Seminar 7 -- RNA-seq: differential expression analysis
+======================================================
+### Lauren Chong
 
 Looking at read count data from RNA-seq of 21 mice (2 strains).
 
@@ -7,60 +8,7 @@ Load packages:
 
 ```r
 library(edgeR)
-```
-
-```
-## Loading required package: limma
-```
-
-```r
 library(DESeq)
-```
-
-```
-## Loading required package: BiocGenerics
-## Loading required package: parallel
-## 
-## Attaching package: 'BiocGenerics'
-## 
-## The following objects are masked from 'package:parallel':
-## 
-##     clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
-##     clusterExport, clusterMap, parApply, parCapply, parLapply,
-##     parLapplyLB, parRapply, parSapply, parSapplyLB
-## 
-## The following object is masked from 'package:limma':
-## 
-##     plotMA
-## 
-## The following object is masked from 'package:stats':
-## 
-##     xtabs
-## 
-## The following objects are masked from 'package:base':
-## 
-##     anyDuplicated, append, as.data.frame, as.vector, cbind,
-##     colnames, duplicated, eval, evalq, Filter, Find, get,
-##     intersect, is.unsorted, lapply, Map, mapply, match, mget,
-##     order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
-##     rbind, Reduce, rep.int, rownames, sapply, setdiff, sort,
-##     table, tapply, union, unique, unlist
-## 
-## Loading required package: Biobase
-## Welcome to Bioconductor
-## 
-##     Vignettes contain introductory material; view with
-##     'browseVignettes()'. To cite Bioconductor, see
-##     'citation("Biobase")', and for packages 'citation("pkgname")'.
-## 
-## Loading required package: locfit
-## locfit 1.5-9.1 	 2013-03-22
-## Loading required package: lattice
-##     Welcome to 'DESeq'. For improved performance, usability and
-##     functionality, please consider migrating to 'DESeq2'.
-```
-
-```r
 library(limma)
 ```
 
@@ -608,4 +556,53 @@ topTable(fit)
 ## ENSMUSG00000024462 4.424e-50
 ## ENSMUSG00000030102 6.417e-50
 ```
+
+
+Take-home
+---------
+Choose a p-value cutoff, and identify DE genes from each of the 3 methods:
+
+```r
+cutoff <- 1e-05
+edger.hits <- rownames(tt.glm$table[tt.glm$table$FDR < cutoff, ])
+deseq.hits <- results[which(results$padj < cutoff), "id"]
+voom.hits <- rownames(topTable(fit, number = Inf, coef = "group2", p.value = cutoff))
+```
+
+
+Plot the overlaps using a venn diagram:
+
+```r
+library(VennDiagram)
+```
+
+```
+## Loading required package: grid
+```
+
+```r
+de.genes <- list(edgeR = edger.hits, DESeq = deseq.hits, Voom = voom.hits)
+venn.plot <- venn.diagram(de.genes, filename = NULL, fill = c("red", "blue", 
+    "green"), cat.fontface = "bold", cat.cex = 1.5, cex = 2, fontface = "bold")
+grid.draw(venn.plot)
+```
+
+![plot of chunk unnamed-chunk-18](figure/unnamed-chunk-18.png) 
+
+
+Plot the counts for a few of the shared genes:
+
+```r
+common.genes <- intersect(edger.hits, intersect(deseq.hits, voom.hits))
+set.seed(540)
+my.genes <- common.genes[sample(c(1:length(common.genes)), size = 3)]
+my.dat <- dat[my.genes, ]
+my.dat <- data.frame(counts = as.vector(t(my.dat)), gene = rep(rownames(my.dat), 
+    each = ncol(my.dat)))
+my.dat <- suppressWarnings(data.frame(des, my.dat))
+bwplot(counts ~ strain | gene, my.dat, panel = panel.violin, scales = list(y = list(relation = "free")), 
+    col = "darkgrey", border = "darkgrey")
+```
+
+![plot of chunk unnamed-chunk-19](figure/unnamed-chunk-19.png) 
 

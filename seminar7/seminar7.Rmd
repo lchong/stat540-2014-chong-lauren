@@ -1,10 +1,11 @@
-STAT 540 -- Seminar 7
-========================================================
+Seminar 7 -- RNA-seq: differential expression analysis
+======================================================
+### Lauren Chong
 
 Looking at read count data from RNA-seq of 21 mice (2 strains).
 
 Load packages:
-```{r}
+```{r message=FALSE}
 library(edgeR)
 library(DESeq)
 library(limma)
@@ -122,4 +123,38 @@ Now fit the model using our "voomed" data, and check out the top results:
 fit <- lmFit(dat.voomed, design)
 fit <- eBayes(fit)
 topTable(fit)
+```
+
+Take-home
+---------
+Choose a p-value cutoff, and identify DE genes from each of the 3 methods:
+```{r}
+cutoff <- 1e-5
+edger.hits <- rownames(tt.glm$table[tt.glm$table$FDR < cutoff, ])
+deseq.hits <- results[which(results$padj < cutoff), "id"]
+voom.hits <- rownames(topTable(fit, number = Inf, coef = "group2", p.value = cutoff))
+```
+
+Plot the overlaps using a venn diagram:
+```{r}
+library(VennDiagram)
+de.genes <- list(edgeR = edger.hits, DESeq = deseq.hits, Voom = voom.hits)
+venn.plot <- venn.diagram(de.genes, filename = NULL, fill = c("red", "blue", "green"), cat.fontface = "bold", cat.cex = 1.5, cex = 2, fontface = "bold")
+grid.draw(venn.plot)
+```
+
+Plot the counts for a few of the shared genes:
+```{r}
+common.genes <- intersect(edger.hits, intersect(deseq.hits, voom.hits))
+set.seed(540)
+my.genes <- common.genes[sample(c(1:length(common.genes)), size = 3)]
+my.dat <- dat[my.genes,]
+my.dat <- data.frame(
+  counts = as.vector(t(my.dat)),
+  gene = rep(rownames(my.dat), each = ncol(my.dat))
+  )
+my.dat <- suppressWarnings(data.frame(des, my.dat))
+bwplot(counts ~ strain | gene, my.dat, panel = panel.violin,
+       scales = list(y = list(relation = "free")),
+       col = "darkgrey", border = "darkgrey")
 ```
