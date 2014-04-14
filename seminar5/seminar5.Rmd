@@ -14,22 +14,99 @@ str(prDes)
 
 Write a function to extract info for a list of genes:
 ```{r}
-prepareData <- function(genes) {
-  miniDat <- prDat[genes,]
-  miniDat <- data.frame(
-    gExp = as.vector(t(as.matrix(miniDat))),
-    gene = factor(rep(genes, each = ncol(miniDat)), levels = genes)
+prepareData <- function(myGenes) {
+  genesDat <- prDat[myGenes,]
+  genesDat <- data.frame(
+    gExp = as.vector(t(as.matrix(genesDat))),
+    gene = factor(rep(myGenes, each = ncol(genesDat)), levels = myGenes)
   )
-  miniDat <- suppressWarnings(data.frame(prDes, miniDat))
+  genesDat <- suppressWarnings(data.frame(prDes, genesDat))
+  return(genesDat)
 }
 
 # Test it out
 (luckyGenes <- c("1419655_at","1438815_at"))
-jDat <- prepareData(luckyGenes)
-str(jDat)
-head(jDat)
+lDat <- prepareData(luckyGenes)
+str(lDat)
+head(lDat)
 
-stripplot(gExp ~ devStage | gene, jDat,
+stripplot(gExp ~ devStage | gene, lDat,
           group = gType, jitter.data = TRUE,
           auto.key = TRUE, type = c('p', 'a'), grid = TRUE)
 ```
+
+Borrow the makestripplot function from Jenny's code:
+```{r}
+makeStripplot <- function(myData, ...) {
+  stripplot(gExp ~ devStage | gene, myData,
+            group = gType, jitter.data = TRUE,
+            auto.key = TRUE, type = c('p', 'a'), grid = TRUE, ...)
+}
+```
+
+Further work
+------------
+Retry some similar analyses from the tutorial, but treat developmental stage as a numerical variable. Drop the last time point too, as per Jenny's observations:
+```{r}
+library(car)
+prDes$age <- + recode(prDes$devStage, "'E16'=-2; 'P2'=2; 'P6'=6; 'P10'=10; '4_weeks'=28", as.factor.result = FALSE)
+prDes <- prDes[prDes$devStage != "4_weeks",]
+prDat <- prDat[,prDes$sidChar]
+```
+
+### Gene 1
+Experiment with a single gene of interest:
+```{r}
+oDat <- prepareData("1448690_at")
+xyplot(gExp ~ age | gene, oDat,
+          group = gType, jitter.data = TRUE,
+          auto.key = TRUE, type = c('p', 'a'), grid = TRUE)
+fit.lm <- lm(gExp ~ age * gType, oDat)
+summary(fit.lm)
+```
+
+Our fitted model tells us there is no significant interaction effect. Try a new model with no interaction, and compare the results using ANOVA:
+```{r}
+fit.lm.noint <- lm(gExp ~ age + gType, oDat)
+summary(fit.lm.noint)
+anova(fit.lm.noint, fit.lm)
+```
+
+The large p-value indicates that adding the interactions is unnecessary.
+
+### Gene 2
+Now try analysis with a more interesting gene:
+```{r}
+pDat <- prepareData("1429225_at")
+xyplot(gExp ~ age | gene, pDat,
+          group = gType, jitter.data = TRUE,
+          auto.key = TRUE, type = c('p', 'a'), grid = TRUE)
+```
+
+This looks like it may be non-linear, so try comparing linear and quadratic age models:
+```{r}
+quad.fit.small <- lm(formula = gExp ~ age, data = pDat)
+summary(quad.fit.small)
+quad.fit <- lm(formula = gExp ~ age + I(age^2), data = pDat)
+summary(quad.fit)
+anova(quad.fit.small, quad.fit)
+```
+
+The p-value is very significant, meaning that the quadratic model is a big improvement. Now see if adding genotype changes anything:
+```{r}
+quad.fit.gtype <- lm(formula = gExp ~ gType + (age + I(age^2)), data = pDat)
+summary(quad.fit.gtype)
+anova(quad.fit, quad.fit.gtype)
+```
+
+So it looks like adding the genotype information is moderately informative. What about an interaction effect?
+```{r}
+quad.fit.int <- lm(formula = gExp ~ gType * (age + I(age^2)), data = pDat)
+summary(quad.fit.int)
+anova(quad.fit, quad.fit.int)
+```
+
+Adding an interaction between age and genotype appears to be a significant improvement. This is the best model we have tried for this gene.
+
+### Conclusions
+Using a numerical covariate for age allowed us to fit quadratic models which were more appropriate for the 2nd gene.
