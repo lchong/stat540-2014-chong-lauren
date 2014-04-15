@@ -1,0 +1,17 @@
+Seminar 8 -- DNA methylation analysis
+========================================================
+### Lauren Chong
+
+Load libraries and data:
+```{r message=FALSE}
+library(GEOquery)
+library(wateRmelon)
+library(IlluminaHumanMethylation450k.db)
+```
+
+```{r}
+GSE39141 <- getGEO(filename = "GSE39141_series_matrix.txt.gz")
+show(GSE39141)  ## 33 samples (29 ALL and 4 healthy B cells)
+GSE42865 <- getGEO("GSE42865")  # took ~2 mins for JB
+show(GSE42865)
+```
